@@ -1,0 +1,231 @@
+import { useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { motion } from 'framer-motion';
+import { Eye, EyeOff, Lock, Loader2, CheckCircle2 } from 'lucide-react';
+import { toast } from 'sonner';
+
+import { AuthLayout } from '@/components/auth/AuthLayout';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import api from '@/services/api';
+
+const resetPasswordSchema = z.object({
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number'),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ['confirmPassword'],
+});
+
+type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
+
+const ResetPassword = () => {
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  
+  const token = searchParams.get('token');
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    watch,
+  } = useForm<ResetPasswordFormData>({
+    resolver: zodResolver(resetPasswordSchema),
+  });
+
+  const password = watch('password', '');
+  
+  const passwordRequirements = [
+    { label: 'At least 8 characters', met: password.length >= 8 },
+    { label: 'One uppercase letter', met: /[A-Z]/.test(password) },
+    { label: 'One lowercase letter', met: /[a-z]/.test(password) },
+    { label: 'One number', met: /[0-9]/.test(password) },
+  ];
+
+  const onSubmit = async (data: ResetPasswordFormData) => {
+    if (!token) {
+      toast.error('Invalid reset link');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await api.resetPassword(token, data.password);
+      if (response.success) {
+        setIsSuccess(true);
+        toast.success('Password reset successfully!');
+      } else {
+        toast.error(response.message || 'Unable to reset password');
+      }
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Unable to reset password. Please try again.';
+      toast.error(message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (!token) {
+    return (
+      <AuthLayout 
+        title="Invalid link" 
+        subtitle="This password reset link is invalid or expired"
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center space-y-6"
+        >
+          <p className="text-muted-foreground">
+            Please request a new password reset link.
+          </p>
+          <div className="space-y-3">
+            <Link to="/forgot-password">
+              <Button className="w-full">Request new link</Button>
+            </Link>
+            <Link to="/login">
+              <Button variant="outline" className="w-full">Back to login</Button>
+            </Link>
+          </div>
+        </motion.div>
+      </AuthLayout>
+    );
+  }
+
+  if (isSuccess) {
+    return (
+      <AuthLayout 
+        title="Password reset!" 
+        subtitle="Your password has been successfully reset"
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center space-y-6"
+        >
+          <div className="mx-auto w-16 h-16 bg-success/10 rounded-full flex items-center justify-center">
+            <CheckCircle2 className="h-8 w-8 text-success" />
+          </div>
+          <p className="text-muted-foreground">
+            You can now sign in with your new password.
+          </p>
+          <Button onClick={() => navigate('/login')} className="w-full">
+            Go to login
+          </Button>
+        </motion.div>
+      </AuthLayout>
+    );
+  }
+
+  return (
+    <AuthLayout 
+      title="Reset password" 
+      subtitle="Enter your new password below"
+    >
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="space-y-2"
+        >
+          <Label htmlFor="password">New password</Label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Create a strong password"
+              className="pl-10 pr-10"
+              {...register('password')}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+          
+          {/* Password requirements */}
+          <div className="grid grid-cols-2 gap-1 pt-1">
+            {passwordRequirements.map((req, index) => (
+              <div
+                key={index}
+                className={`flex items-center gap-1 text-xs ${
+                  req.met ? 'text-success' : 'text-muted-foreground'
+                }`}
+              >
+                <CheckCircle2 className={`h-3 w-3 ${req.met ? 'opacity-100' : 'opacity-40'}`} />
+                {req.label}
+              </div>
+            ))}
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="space-y-2"
+        >
+          <Label htmlFor="confirmPassword">Confirm new password</Label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              id="confirmPassword"
+              type={showConfirmPassword ? 'text' : 'password'}
+              placeholder="Confirm your new password"
+              className="pl-10 pr-10"
+              {...register('confirmPassword')}
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+          {errors.confirmPassword && (
+            <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>
+          )}
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <Button type="submit" className="w-full h-11" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Resetting...
+              </>
+            ) : (
+              'Reset password'
+            )}
+          </Button>
+        </motion.div>
+      </form>
+    </AuthLayout>
+  );
+};
+
+export default ResetPassword;
