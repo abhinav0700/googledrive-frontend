@@ -1,10 +1,11 @@
 import { motion } from 'framer-motion';
-import { 
-  FolderClosed, 
-  FileText, 
-  Image, 
-  Video, 
-  Music, 
+import {
+  FolderClosed,
+  FileText,
+  FileSpreadsheet,
+  Image,
+  Video,
+  Music,
   File,
   MoreVertical,
   Download,
@@ -34,6 +35,7 @@ interface FileCardProps {
 const iconMap: Record<FileType, typeof File> = {
   folder: FolderClosed,
   document: FileText,
+  spreadsheet: FileSpreadsheet,
   image: Image,
   video: Video,
   audio: Music,
@@ -43,6 +45,7 @@ const iconMap: Record<FileType, typeof File> = {
 const colorMap: Record<FileType, string> = {
   folder: 'text-file-folder',
   document: 'text-file-doc',
+  spreadsheet: 'text-green-600',
   image: 'text-file-image',
   video: 'text-file-video',
   audio: 'text-file-audio',
@@ -107,8 +110,8 @@ export const FileCard = ({ item, type, onOpen, onDownload, onDelete, onRename }:
                 Rename
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                onClick={(e) => { e.stopPropagation(); onDelete?.(); }} 
+              <DropdownMenuItem
+                onClick={(e) => { e.stopPropagation(); onDelete?.(); }}
                 className="gap-3 text-destructive focus:text-destructive"
               >
                 <Trash2 className="h-4 w-4" />

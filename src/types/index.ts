@@ -37,7 +37,7 @@ export interface Folder {
   createdAt: string;
 }
 
-export type FileType = 'folder' | 'document' | 'image' | 'video' | 'audio' | 'other';
+export type FileType = 'folder' | 'document' | 'spreadsheet' | 'image' | 'video' | 'audio' | 'other';
 
 export interface BreadcrumbItem {
   id: string;

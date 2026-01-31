@@ -28,11 +28,15 @@ class ApiService {
     this.client.interceptors.response.use(
       (response) => response,
       (error: AxiosError) => {
-        if (error.response?.status === 401) {
+        const isLoginRequest = error.config?.url?.includes('/auth/login');
+
+        if (error.response?.status === 401 && !isLoginRequest) {
           // Token expired or invalid
           localStorage.removeItem('authToken');
           localStorage.removeItem('authUser');
-          window.location.href = '/login';
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
         }
         return Promise.reject(error);
       }
@@ -100,10 +104,10 @@ class ApiService {
 
   async uploadFile(file: File, folderId?: string, onProgress?: (progress: number) => void): Promise<FileItem> {
     const formData = new FormData();
-    formData.append('file', file);
     if (folderId) {
       formData.append('folderId', folderId);
     }
+    formData.append('file', file);
 
     const response = await this.client.post('/files/upload', formData, {
       headers: {

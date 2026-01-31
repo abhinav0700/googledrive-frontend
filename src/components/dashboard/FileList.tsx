@@ -1,10 +1,11 @@
 import { motion } from 'framer-motion';
-import { 
-  FolderClosed, 
-  FileText, 
-  Image, 
-  Video, 
-  Music, 
+import {
+  FolderClosed,
+  FileText,
+  FileSpreadsheet,
+  Image,
+  Video,
+  Music,
   File,
   MoreVertical,
   Download,
@@ -43,6 +44,7 @@ interface FileListProps {
 const iconMap: Record<FileType, typeof File> = {
   folder: FolderClosed,
   document: FileText,
+  spreadsheet: FileSpreadsheet,
   image: Image,
   video: Video,
   audio: Music,
@@ -52,20 +54,21 @@ const iconMap: Record<FileType, typeof File> = {
 const colorMap: Record<FileType, string> = {
   folder: 'text-file-folder',
   document: 'text-file-doc',
+  spreadsheet: 'text-green-600',
   image: 'text-file-image',
   video: 'text-file-video',
   audio: 'text-file-audio',
   other: 'text-file-default',
 };
 
-export const FileList = ({ 
-  files, 
-  folders, 
-  onOpenFile, 
-  onOpenFolder, 
-  onDownload, 
-  onDelete, 
-  onRename 
+export const FileList = ({
+  files,
+  folders,
+  onOpenFile,
+  onOpenFolder,
+  onDownload,
+  onDelete,
+  onRename
 }: FileListProps) => {
   return (
     <div className="rounded-lg border border-border overflow-hidden">
@@ -112,16 +115,16 @@ export const FileList = ({
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem 
-                        onClick={(e) => { e.stopPropagation(); onRename?.(folder, 'folder'); }} 
+                      <DropdownMenuItem
+                        onClick={(e) => { e.stopPropagation(); onRename?.(folder, 'folder'); }}
                         className="gap-3"
                       >
                         <Pencil className="h-4 w-4" />
                         Rename
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem 
-                        onClick={(e) => { e.stopPropagation(); onDelete?.(folder, 'folder'); }} 
+                      <DropdownMenuItem
+                        onClick={(e) => { e.stopPropagation(); onDelete?.(folder, 'folder'); }}
                         className="gap-3 text-destructive focus:text-destructive"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -170,23 +173,23 @@ export const FileList = ({
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem 
-                        onClick={(e) => { e.stopPropagation(); onDownload?.(file); }} 
+                      <DropdownMenuItem
+                        onClick={(e) => { e.stopPropagation(); onDownload?.(file); }}
                         className="gap-3"
                       >
                         <Download className="h-4 w-4" />
                         Download
                       </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        onClick={(e) => { e.stopPropagation(); onRename?.(file, 'file'); }} 
+                      <DropdownMenuItem
+                        onClick={(e) => { e.stopPropagation(); onRename?.(file, 'file'); }}
                         className="gap-3"
                       >
                         <Pencil className="h-4 w-4" />
                         Rename
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem 
-                        onClick={(e) => { e.stopPropagation(); onDelete?.(file, 'file'); }} 
+                      <DropdownMenuItem
+                        onClick={(e) => { e.stopPropagation(); onDelete?.(file, 'file'); }}
                         className="gap-3 text-destructive focus:text-destructive"
                       >
                         <Trash2 className="h-4 w-4" />

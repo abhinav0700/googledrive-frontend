@@ -1,10 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  LayoutGrid, 
-  List, 
-  ChevronRight, 
+import {
+  LayoutGrid,
+  List,
+  ChevronRight,
   Home,
   FolderOpen
 } from 'lucide-react';
@@ -15,54 +16,78 @@ import { FileCard } from '@/components/dashboard/FileCard';
 import { FileList } from '@/components/dashboard/FileList';
 import { UploadModal } from '@/components/dashboard/UploadModal';
 import { CreateFolderModal } from '@/components/dashboard/CreateFolderModal';
+import { RenameModal } from '@/components/dashboard/RenameModal';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { FileItem, Folder, BreadcrumbItem } from '@/types';
 import api from '@/services/api';
 
-// Demo data for showcase
-const demoFolders: Folder[] = [
-  { _id: '1', userId: 'demo', name: 'Documents', parentFolder: null, path: '/Documents', createdAt: '2024-01-15T10:30:00Z' },
-  { _id: '2', userId: 'demo', name: 'Images', parentFolder: null, path: '/Images', createdAt: '2024-01-14T09:20:00Z' },
-  { _id: '3', userId: 'demo', name: 'Projects', parentFolder: null, path: '/Projects', createdAt: '2024-01-10T14:45:00Z' },
-];
-
-const demoFiles: FileItem[] = [
-  { _id: 'f1', userId: 'demo', name: 'Annual Report 2024.pdf', s3Key: 'demo/report.pdf', folderPath: '/', size: 2456789, mimeType: 'application/pdf', createdAt: '2024-01-20T11:30:00Z' },
-  { _id: 'f2', userId: 'demo', name: 'Presentation.pptx', s3Key: 'demo/pres.pptx', folderPath: '/', size: 5678901, mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', createdAt: '2024-01-19T16:45:00Z' },
-  { _id: 'f3', userId: 'demo', name: 'Team Photo.jpg', s3Key: 'demo/team.jpg', folderPath: '/', size: 1234567, mimeType: 'image/jpeg', createdAt: '2024-01-18T09:15:00Z' },
-  { _id: 'f4', userId: 'demo', name: 'Meeting Notes.docx', s3Key: 'demo/notes.docx', folderPath: '/', size: 345678, mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', createdAt: '2024-01-17T14:20:00Z' },
-];
-
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  // UI State
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
-  const [uploadingFiles, setUploadingFiles] = useState<Map<string, number>>(new Map());
+
+  // Data State
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [files, setFiles] = useState<FileItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [currentPath, setCurrentPath] = useState<BreadcrumbItem[]>([
     { id: 'root', name: 'My Drive', path: '/' }
   ]);
-  
-  // In a real app, these would come from API calls
-  const [folders, setFolders] = useState<Folder[]>(demoFolders);
-  const [files, setFiles] = useState<FileItem[]>(demoFiles);
 
+  // Operation State
+  const [uploadingFiles, setUploadingFiles] = useState<Map<string, number>>(new Map());
+  const [renameItem, setRenameItem] = useState<{ item: FileItem | Folder, type: 'file' | 'folder' } | null>(null);
+
+  // Fetch data
+  const loadData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const parentId = currentPath[currentPath.length - 1].id === 'root'
+        ? undefined
+        : currentPath[currentPath.length - 1].id;
+
+      const [fetchedFolders, fetchedFiles] = await Promise.all([
+        api.getFolders(parentId),
+        api.getFiles(parentId)
+      ]);
+
+      setFolders(fetchedFolders);
+      setFiles(fetchedFiles);
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to load files');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentPath]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Handlers
   const handleUpload = useCallback(async (filesToUpload: File[]) => {
+    const parentId = currentPath[currentPath.length - 1].id === 'root'
+      ? undefined
+      : currentPath[currentPath.length - 1].id;
+
     for (const file of filesToUpload) {
       setUploadingFiles(prev => new Map(prev).set(file.name, 0));
-      
+
       try {
-        // Simulate upload progress for demo
-        for (let i = 0; i <= 100; i += 10) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-          setUploadingFiles(prev => new Map(prev).set(file.name, i));
-        }
-        
-        // In real app: await api.uploadFile(file, currentFolderId, (progress) => {...})
+        await api.uploadFile(file, parentId, (progress) => {
+          setUploadingFiles(prev => new Map(prev).set(file.name, progress));
+        });
         toast.success(`${file.name} uploaded successfully`);
-      } catch (error) {
-        toast.error(`Failed to upload ${file.name}`);
+      } catch (error: any) {
+        console.error('Upload failed:', error);
+        const errorMessage = error.response?.data?.message || error.message || 'Unknown error';
+        toast.error(`Failed to upload ${file.name}: ${errorMessage}`);
       } finally {
         setUploadingFiles(prev => {
           const newMap = new Map(prev);
@@ -72,64 +97,102 @@ const Dashboard = () => {
       }
     }
     setIsUploadModalOpen(false);
-  }, []);
+    loadData();
+  }, [currentPath, loadData]);
 
   const handleCreateFolder = async (name: string) => {
     try {
-      // In real app: await api.createFolder(name, currentFolderId)
-      const newFolder: Folder = {
-        _id: Date.now().toString(),
-        userId: 'demo',
-        name,
-        parentFolder: null,
-        path: `/${name}`,
-        createdAt: new Date().toISOString(),
-      };
-      setFolders(prev => [...prev, newFolder]);
+      const parentId = currentPath[currentPath.length - 1].id === 'root'
+        ? undefined
+        : currentPath[currentPath.length - 1].id;
+
+      await api.createFolder(name, parentId);
       toast.success('Folder created');
+      loadData();
     } catch (error) {
+      console.error(error);
       toast.error('Failed to create folder');
       throw error;
     }
   };
 
+  const handleRenameClick = (item: FileItem | Folder, type: 'file' | 'folder') => {
+    setRenameItem({ item, type });
+  };
+
+  const handleRename = async (newName: string) => {
+    if (!renameItem) return;
+
+    try {
+      if (renameItem.type === 'folder') {
+        await api.renameFolder(renameItem.item._id, newName);
+      } else {
+        await api.renameFile(renameItem.item._id, newName);
+      }
+      toast.success('Renamed successfully');
+      loadData();
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to rename item');
+    }
+  };
+
   const handleOpenFolder = (folder: Folder) => {
     setCurrentPath(prev => [...prev, { id: folder._id, name: folder.name, path: folder.path }]);
-    // In real app: fetch folder contents
-    setFolders([]);
-    setFiles([]);
-    toast.info(`Opened ${folder.name}`);
   };
 
   const handleBreadcrumbClick = (index: number) => {
     setCurrentPath(prev => prev.slice(0, index + 1));
-    // In real app: fetch folder contents for that path
-    if (index === 0) {
-      setFolders(demoFolders);
-      setFiles(demoFiles);
-    }
   };
 
   const handleDownload = async (file: FileItem) => {
-    toast.info(`Downloading ${file.name}...`);
-    // In real app: const blob = await api.downloadFile(file._id)
+    try {
+      toast.info(`Downloading ${file.name}...`);
+      const { url } = await api.getDownloadUrl(file._id);
+
+      // Trigger download
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', file.name);
+      link.setAttribute('target', '_blank');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to download file');
+    }
+  };
+
+  const handleOpenFile = async (file: FileItem) => {
+    try {
+      const { url } = await api.getDownloadUrl(file._id);
+      window.open(url, '_blank');
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to open file');
+    }
   };
 
   const handleDelete = async (item: FileItem | Folder, type: 'file' | 'folder') => {
+    if (!window.confirm(`Are you sure you want to delete "${item.name}"?`)) return;
+
     try {
       if (type === 'folder') {
-        setFolders(prev => prev.filter(f => f._id !== item._id));
+        await api.deleteFolder(item._id);
       } else {
-        setFiles(prev => prev.filter(f => f._id !== item._id));
+        await api.deleteFile(item._id);
       }
       toast.success(`${item.name} deleted`);
+      loadData();
     } catch (error) {
+      console.error(error);
       toast.error(`Failed to delete ${item.name}`);
     }
   };
 
   return (
-    <DashboardLayout 
+    <DashboardLayout
       onNewFolder={() => setIsFolderModalOpen(true)}
       onUpload={() => setIsUploadModalOpen(true)}
     >
@@ -201,6 +264,7 @@ const Dashboard = () => {
                 type="folder"
                 onOpen={() => handleOpenFolder(folder)}
                 onDelete={() => handleDelete(folder, 'folder')}
+                onRename={() => handleRenameClick(folder, 'folder')}
               />
             ))}
             {files.map((file) => (
@@ -208,13 +272,15 @@ const Dashboard = () => {
                 key={file._id}
                 item={file}
                 type="file"
+                onOpen={() => handleOpenFile(file)}
                 onDownload={() => handleDownload(file)}
                 onDelete={() => handleDelete(file, 'file')}
+                onRename={() => handleRenameClick(file, 'file')}
               />
             ))}
-            
+
             {/* Empty state */}
-            {folders.length === 0 && files.length === 0 && (
+            {folders.length === 0 && files.length === 0 && !isLoading && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -232,6 +298,13 @@ const Dashboard = () => {
                 </Button>
               </motion.div>
             )}
+
+            {/* Loading state */}
+            {isLoading && folders.length === 0 && files.length === 0 && (
+              <div className="col-span-full flex justify-center py-20">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            )}
           </motion.div>
         ) : (
           <motion.div
@@ -244,8 +317,10 @@ const Dashboard = () => {
               files={files}
               folders={folders}
               onOpenFolder={handleOpenFolder}
+              onOpenFile={handleOpenFile}
               onDownload={handleDownload}
               onDelete={handleDelete}
+              onRename={handleRenameClick}
             />
           </motion.div>
         )}
@@ -264,6 +339,16 @@ const Dashboard = () => {
         onClose={() => setIsFolderModalOpen(false)}
         onCreate={handleCreateFolder}
       />
+
+      {renameItem && (
+        <RenameModal
+          isOpen={!!renameItem}
+          onClose={() => setRenameItem(null)}
+          onRename={handleRename}
+          currentName={renameItem.item.name}
+          type={renameItem.type}
+        />
+      )}
     </DashboardLayout>
   );
 };

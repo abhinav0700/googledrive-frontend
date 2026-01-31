@@ -21,10 +21,8 @@ interface UploadModalProps {
 
 export const UploadModal = ({ isOpen, onClose, onUpload, uploadingFiles }: UploadModalProps) => {
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    if (acceptedFiles.length > 0) {
-      onUpload(acceptedFiles);
-    }
-  }, [onUpload]);
+    // files are handled by useDropzone state
+  }, []);
 
   const { getRootProps, getInputProps, isDragActive, acceptedFiles } = useDropzone({
     onDrop,
@@ -46,8 +44,8 @@ export const UploadModal = ({ isOpen, onClose, onUpload, uploadingFiles }: Uploa
             {...getRootProps()}
             className={cn(
               "border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all",
-              isDragActive 
-                ? "border-primary bg-primary/5" 
+              isDragActive
+                ? "border-primary bg-primary/5"
                 : "border-border hover:border-primary/50 hover:bg-muted/50"
             )}
           >
@@ -133,8 +131,8 @@ export const UploadModal = ({ isOpen, onClose, onUpload, uploadingFiles }: Uploa
             <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button 
-              onClick={() => onUpload([...acceptedFiles])} 
+            <Button
+              onClick={() => onUpload([...acceptedFiles])}
               disabled={acceptedFiles.length === 0 || uploadingFiles.size > 0}
             >
               {uploadingFiles.size > 0 ? (
