@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Mail, Lock, User, Loader2, CheckCircle2 } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { AuthLayout } from '@/components/auth/AuthLayout';
@@ -34,7 +34,6 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
   const navigate = useNavigate();
 
   const {
@@ -47,7 +46,7 @@ const Register = () => {
   });
 
   const password = watch('password', '');
-  
+
   const passwordRequirements = [
     { label: 'At least 8 characters', met: password.length >= 8 },
     { label: 'One uppercase letter', met: /[A-Z]/.test(password) },
@@ -57,58 +56,44 @@ const Register = () => {
 
   const onSubmit = async (data: RegisterForm) => {
     setIsLoading(true);
+
+    // Show helpful message after 3 seconds if still loading
+    const slowLoadingTimer = setTimeout(() => {
+      toast.info('Server is waking up... This may take 30-60 seconds on first request.', {
+        duration: 10000,
+      });
+    }, 3000);
+
     try {
       const response = await api.register(data);
+      clearTimeout(slowLoadingTimer);
+
       if (response.success) {
-        setIsSuccess(true);
-        toast.success('Account created! Please check your email to activate.');
+        toast.success('Account created successfully! Please login.');
+        // Redirect to login page after 1 second
+        setTimeout(() => {
+          navigate('/login');
+        }, 1000);
       } else {
         toast.error(response.message || 'Registration failed');
       }
     } catch (error: any) {
-      const message = error.response?.data?.message || 'Unable to create account. Please try again.';
-      toast.error(message);
+      clearTimeout(slowLoadingTimer);
+
+      if (error.code === 'ECONNABORTED') {
+        toast.error('Request timed out. The server might be sleeping. Please try again in a minute.');
+      } else {
+        const message = error.response?.data?.message || 'Unable to create account. Please try again.';
+        toast.error(message);
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (isSuccess) {
-    return (
-      <AuthLayout 
-        title="Check your email" 
-        subtitle="We've sent you an activation link"
-      >
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="text-center space-y-6"
-        >
-          <div className="mx-auto w-16 h-16 bg-success/10 rounded-full flex items-center justify-center">
-            <CheckCircle2 className="h-8 w-8 text-success" />
-          </div>
-          <div className="space-y-2">
-            <p className="text-muted-foreground">
-              We've sent an activation email to your address. Please click the link in the email to activate your account.
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Didn't receive the email? Check your spam folder or{' '}
-              <button className="text-primary hover:underline" onClick={() => setIsSuccess(false)}>
-                try again
-              </button>
-            </p>
-          </div>
-          <Button variant="outline" onClick={() => navigate('/login')} className="w-full">
-            Back to login
-          </Button>
-        </motion.div>
-      </AuthLayout>
-    );
-  }
-
   return (
-    <AuthLayout 
-      title="Create your account" 
+    <AuthLayout
+      title="Create your account"
       subtitle="Start storing your files securely"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
@@ -198,15 +183,14 @@ const Register = () => {
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
-          
+
           {/* Password requirements */}
           <div className="grid grid-cols-2 gap-1 pt-1">
             {passwordRequirements.map((req, index) => (
               <div
                 key={index}
-                className={`flex items-center gap-1 text-xs ${
-                  req.met ? 'text-success' : 'text-muted-foreground'
-                }`}
+                className={`flex items-center gap-1 text-xs ${req.met ? 'text-success' : 'text-muted-foreground'
+                  }`}
               >
                 <CheckCircle2 className={`h-3 w-3 ${req.met ? 'opacity-100' : 'opacity-40'}`} />
                 {req.label}
@@ -259,6 +243,11 @@ const Register = () => {
               'Create account'
             )}
           </Button>
+          {isLoading && (
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              ⏱️ First request may take 30-60s (server waking up)
+            </p>
+          )}
         </motion.div>
 
         <motion.p
