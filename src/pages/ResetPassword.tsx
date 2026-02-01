@@ -35,8 +35,12 @@ const ResetPassword = () => {
   const [isSuccess, setIsSuccess] = useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  
+
   const token = searchParams.get('token');
+
+  // Debug logging
+  console.log('Reset Password - Token from URL:', token);
+  console.log('Reset Password - Full URL:', window.location.href);
 
   const {
     register,
@@ -48,7 +52,7 @@ const ResetPassword = () => {
   });
 
   const password = watch('password', '');
-  
+
   const passwordRequirements = [
     { label: 'At least 8 characters', met: password.length >= 8 },
     { label: 'One uppercase letter', met: /[A-Z]/.test(password) },
@@ -81,8 +85,8 @@ const ResetPassword = () => {
 
   if (!token) {
     return (
-      <AuthLayout 
-        title="Invalid link" 
+      <AuthLayout
+        title="Invalid link"
         subtitle="This password reset link is invalid or expired"
       >
         <motion.div
@@ -108,8 +112,8 @@ const ResetPassword = () => {
 
   if (isSuccess) {
     return (
-      <AuthLayout 
-        title="Password reset!" 
+      <AuthLayout
+        title="Password reset!"
         subtitle="Your password has been successfully reset"
       >
         <motion.div
@@ -132,8 +136,8 @@ const ResetPassword = () => {
   }
 
   return (
-    <AuthLayout 
-      title="Reset password" 
+    <AuthLayout
+      title="Reset password"
       subtitle="Enter your new password below"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -161,15 +165,14 @@ const ResetPassword = () => {
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
-          
+
           {/* Password requirements */}
           <div className="grid grid-cols-2 gap-1 pt-1">
             {passwordRequirements.map((req, index) => (
               <div
                 key={index}
-                className={`flex items-center gap-1 text-xs ${
-                  req.met ? 'text-success' : 'text-muted-foreground'
-                }`}
+                className={`flex items-center gap-1 text-xs ${req.met ? 'text-success' : 'text-muted-foreground'
+                  }`}
               >
                 <CheckCircle2 className={`h-3 w-3 ${req.met ? 'opacity-100' : 'opacity-40'}`} />
                 {req.label}

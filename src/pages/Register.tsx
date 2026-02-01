@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Mail, Lock, User, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Loader2, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { AuthLayout } from '@/components/auth/AuthLayout';
@@ -34,6 +34,7 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
   const navigate = useNavigate();
 
   const {
@@ -69,11 +70,8 @@ const Register = () => {
       clearTimeout(slowLoadingTimer);
 
       if (response.success) {
-        toast.success('Account created successfully! Please login.');
-        // Redirect to login page after 1 second
-        setTimeout(() => {
-          navigate('/login');
-        }, 1000);
+        setIsSuccess(true);
+        toast.success('Account created! Please check your email to activate.');
       } else {
         toast.error(response.message || 'Registration failed');
       }
@@ -90,6 +88,39 @@ const Register = () => {
       setIsLoading(false);
     }
   };
+
+  if (isSuccess) {
+    return (
+      <AuthLayout
+        title="Check your email"
+        subtitle="We've sent you an activation link"
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center space-y-6"
+        >
+          <div className="mx-auto w-16 h-16 bg-success/10 rounded-full flex items-center justify-center">
+            <CheckCircle2 className="h-8 w-8 text-success" />
+          </div>
+          <div className="space-y-2">
+            <p className="text-muted-foreground">
+              We've sent an activation email to your address. Please click the link in the email to activate your account.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Didn't receive the email? Check your spam folder or{' '}
+              <button className="text-primary hover:underline" onClick={() => setIsSuccess(false)}>
+                try again
+              </button>
+            </p>
+          </div>
+          <Button variant="outline" onClick={() => navigate('/login')} className="w-full">
+            Back to login
+          </Button>
+        </motion.div>
+      </AuthLayout>
+    );
+  }
 
   return (
     <AuthLayout
@@ -192,9 +223,7 @@ const Register = () => {
                 className={`flex items-center gap-1 text-xs ${req.met ? 'text-success' : 'text-muted-foreground'
                   }`}
               >
-                <span className={`${req.met ? 'opacity-100' : 'opacity-40'}`}>
-                  {req.met ? '✓' : '○'}
-                </span>
+                <CheckCircle2 className={`h-3 w-3 ${req.met ? 'opacity-100' : 'opacity-40'}`} />
                 {req.label}
               </div>
             ))}
