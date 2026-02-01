@@ -192,7 +192,9 @@ const Register = () => {
                 className={`flex items-center gap-1 text-xs ${req.met ? 'text-success' : 'text-muted-foreground'
                   }`}
               >
-                <CheckCircle2 className={`h-3 w-3 ${req.met ? 'opacity-100' : 'opacity-40'}`} />
+                <span className={`${req.met ? 'opacity-100' : 'opacity-40'}`}>
+                  {req.met ? '✓' : '○'}
+                </span>
                 {req.label}
               </div>
             ))}
